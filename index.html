@@ -315,6 +315,8 @@ function pad3(n){return String(n).padStart(3,"0");}
 function now(){return new Date();}
 function todayCSV(){var d=now();return pad2(d.getDate())+"/"+pad2(d.getMonth()+1)+"/"+d.getFullYear();}
 function toDots(s){s=(s||"").trim();return s?s.replace(/\//g,"."):"";}
+function todayShort(){var d=now();return pad2(d.getDate())+"."+pad2(d.getMonth()+1)+"."+String(d.getFullYear()).slice(2);}
+function deactivateInv(r,date){r["En cave"]="0";r["Convives"]="inventaire "+date;}
 function yymmdd(){var d=now();return String(d.getFullYear()).slice(2)+pad2(d.getMonth()+1)+pad2(d.getDate());}
 function stamp(){var d=now();return pad2(d.getDate())+"."+pad2(d.getMonth()+1)+"."+d.getFullYear()+" "+pad2(d.getHours())+":"+pad2(d.getMinutes());}
 function money(x){var n=parseFloat(String(x).replace(",","."));if(isNaN(n))return "—";
@@ -1111,8 +1113,9 @@ SCR.reglages=function(){
 SCR.apropos=function(){
   topbar("À propos","Cave à vin");
   document.getElementById("screen").innerHTML=
-   '<div class="card stack"><h2>Cave à vin — v5</h2>'
+   '<div class="card stack"><h2>Cave à vin — v6</h2>'
    +'<p class="small">Gestion d\'une cave personnelle à partir d\'un fichier CSV de 21 colonnes. Le CSV reste le fichier maître ; chaque validation produit une nouvelle version datée, accompagnée d\'un fichier TXT d\'historique.</p>'
+   +'<p class="tiny muted">v6 — Inventaire : une bouteille manquante corrige directement la ligne (En cave → 0) et inscrit « inventaire jj.mm.aa » (date du jour) dans Convives, au lieu du statut « à contrôler ».</p>'
    +'<p class="tiny muted">v5 — Recherche : filtres à sélection multiple (plusieurs régions, pays…) avec retrait par étiquette. Réglages : export / import des réglages. Fiche vin : présentation « fiche technique » aérée. Inventaire : « nombre de bouteilles dans le casier » en grand.</p>'
    +'<p class="tiny muted">v4 — 100% local, aucun accès externe (ni police, image, script ou CDN externe ; aucun lien sortant). Export par partage iOS (« Enregistrer dans Fichiers ») avec repli copier-coller intégré. Validation : modifications triées par emplacement.</p>'
    +'<p class="tiny muted">v3 — Dialogues internes. Liste par cave : tri + prix. Regroupement des emplacements. Fiche : statut « à contrôler ». Inventaire : sélecteur repliable, sans saut d\'écran, sauvegarde automatique.</p>'
@@ -1212,14 +1215,14 @@ function invSaveCurrent(){var iv=state.inv;if(!iv.casier)return;var loc=buildLoc
 function invFinish(){
   if(!inventoryReady()){var inc=incompleteCasiers().map(function(l){var p=parseLoc(l);return p.cave+"·"+p.ligne+"/"+p.casier;});
     toast("Terminer indisponible : "+inc.join(", ")+" — pointez chaque vin (Présent/Absent).");return;}
-  var iv=state.inv;var locs=Object.keys(iv.progress);var applied=0;
+  var iv=state.inv;var locs=Object.keys(iv.progress);var applied=0;var invDate=todayShort();
   locs.forEach(function(loc){var p=iv.progress[loc];var lots=p.lots||{};
     for(var key in lots){var lp=lots[key];
       var rows=state.data.filter(function(r){return isStock(r)&&(r["Localisation"]||"").trim()===loc&&wineKey(r)===key;});
       var expected=rows.length;var name=rows[0]?rows[0]["Propriété"]+" "+rows[0]["Année"]:key;
-      if(lp.status==="absent"){rows.forEach(function(r){r["En cave"]="2";});logChange("Inventaire",loc+" · "+name+" : absent (attendu "+expected+") → à contrôler");applied++;if(lp.note)logChange("Inventaire",loc+" · "+name+" : "+lp.note);}
+      if(lp.status==="absent"){rows.forEach(function(r){deactivateInv(r,invDate);});logChange("Inventaire",loc+" · "+name+" : absent (attendu "+expected+") → "+expected+" corrigée(s) : En cave 0, Convives « inventaire "+invDate+" »");applied++;if(lp.note)logChange("Inventaire",loc+" · "+name+" : "+lp.note);}
       else if(lp.status==="present"){
-        if(lp.count<expected){var diff=expected-lp.count;for(var i=0;i<diff;i++)rows[i]["En cave"]="2";logChange("Inventaire",loc+" · "+name+" : "+lp.count+"/"+expected+" présentes → "+diff+" à contrôler");applied++;}
+        if(lp.count<expected){var diff=expected-lp.count;for(var i=0;i<diff;i++)deactivateInv(rows[i],invDate);logChange("Inventaire",loc+" · "+name+" : "+lp.count+"/"+expected+" présentes → "+diff+" corrigée(s) : En cave 0, Convives « inventaire "+invDate+" »");applied++;}
         else if(lp.count>expected){logChange("Inventaire",loc+" · "+name+" : "+lp.count+" trouvées (attendu "+expected+"), ajouter les manquantes");applied++;}
         if(lp.etiq==="Non"){logChange("Inventaire",loc+" · "+name+" : étiquette absente");applied++;}
         if(lp.note){logChange("Inventaire",loc+" · "+name+" : "+lp.note);applied++;}
