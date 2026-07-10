@@ -221,6 +221,25 @@ input[type=range]{accent-color:var(--accent);width:100%}
   text-align:center;box-shadow:0 6px 20px rgba(0,0,0,.28);opacity:0;pointer-events:none;z-index:80;white-space:pre-line;
   transition:opacity .18s ease,transform .18s ease}
 #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+/* ==== v5 ==== */
+.fltrow{width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:12px 34px 12px 13px;position:relative;margin-bottom:8px;cursor:pointer;display:block;font-size:1rem;color:var(--ink)}
+.fltrow::after{content:"⌄";position:absolute;right:14px;top:9px;color:var(--soft);font-size:1.1rem}
+.fltrow.on{border-color:var(--accent)}
+.fltrow .fcol{color:var(--soft);font-size:.78rem;letter-spacing:.04em}
+.fltrow .fval{font-weight:600}
+.chipbar{display:flex;flex-wrap:wrap;gap:6px;margin:2px 2px 12px;align-items:center}
+.fchip{display:inline-flex;align-items:center;gap:7px;font-size:.82rem;background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:5px 6px 5px 11px}
+.fchip button{border:0;background:var(--line);color:var(--ink);border-radius:50%;width:19px;height:19px;line-height:1;font-size:.82rem;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.spec{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:2px 16px}
+.spec .srow{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:14px 0;border-bottom:1px solid var(--line)}
+.spec .srow:last-child{border-bottom:0}
+.spec .sk{font-family:var(--mono);font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);flex:none;padding-top:3px}
+.spec .sv{text-align:right;font-size:1.08rem;line-height:1.3;color:var(--ink)}
+.spec .srow.block{flex-direction:column;align-items:stretch;gap:7px}
+.spec .srow.block .sv{text-align:left;font-size:.98rem;color:var(--soft)}
+.qexp{display:flex;align-items:center;gap:11px;margin-top:9px;flex-wrap:wrap}
+.qexp-k{font-size:.75rem;color:var(--soft);letter-spacing:.02em}
+.qexp-v{font-family:var(--serif);font-size:1.8rem;line-height:1;color:var(--ink);font-weight:600}
 </style>
 </head>
 <body>
@@ -550,12 +569,7 @@ SCR.fiche=function(p){
     +'<div class="small muted" style="margin-top:3px">'+esc([rep["Année"],rep["Couleur"],rep["Volume"]].filter(Boolean).join(" · "))+'</div></div>'
     +'<div class="badge '+(stock.length?"acc":"out")+'">'+stock.length+' en stock</div></div></div>';
 
-  html+='<div class="section" style="margin-top:14px"><table class="facts">'
-    +fact("Pays",rep["Pays"])+fact("Région",rep["Région"])+fact("Appellation",rep["Appellation"])
-    +fact("Cépages",rep["Cépages"])+fact("Volume",rep["Volume"])
-    +fact("Prix d'achat",rep["Prix"]?money(rep["Prix"]):"")+fact("Date d'entrée",toDots(rep["Date entrée"]))
-    +(rep["Commentaire"]?fact("Commentaire",rep["Commentaire"]):"")
-    +'</table></div>';
+  html+=specSheet(rep);
 
   if(stock.length){html+='<div class="section"><div class="lbl">Emplacements</div><div class="stack">';
     Object.keys(lots).forEach(function(l){var pl=parseLoc(l);var cc=ctrlLots[l]||0;
@@ -579,11 +593,22 @@ SCR.fiche=function(p){
   document.getElementById("screen").innerHTML=html;
 };
 function fact(k,v){v=(v==null?"":String(v)).trim();if(!v)return "";return '<tr><td>'+esc(k)+'</td><td>'+esc(v)+'</td></tr>';}
+function specSheet(rep){
+  var items=[["Pays",rep["Pays"]],["Région",rep["Région"]],["Appellation",rep["Appellation"]],
+    ["Cépages",rep["Cépages"]],["Couleur",rep["Couleur"]],["Volume",rep["Volume"]],
+    ["Millésime",rep["Année"]],["Prix d'achat",rep["Prix"]?money(rep["Prix"]):""],
+    ["Date d'entrée",toDots(rep["Date entrée"])]];
+  var rows=items.filter(function(x){return String(x[1]==null?"":x[1]).trim();})
+    .map(function(x){return '<div class="srow"><span class="sk">'+esc(x[0])+'</span><span class="sv">'+esc(x[1])+'</span></div>';});
+  var com=(rep["Commentaire"]||"").trim();
+  if(com)rows.push('<div class="srow block"><span class="sk">Commentaire</span><span class="sv">'+esc(com)+'</span></div>');
+  return '<div class="section" style="margin-top:14px"><div class="lbl">Fiche technique</div><div class="spec">'+rows.join("")+'</div></div>';
+}
 function groupLots(rows){var m={};rows.forEach(function(r){var l=(r["Localisation"]||"").trim()||"Non placé";m[l]=(m[l]||0)+1;});return m;}
 function byId(id){for(var i=0;i<state.data.length;i++)if(state.data[i]._id===String(id))return state.data[i];return null;}
 
 /* ---------- Recherche ---------- */
-var SS={init:false,scope:"stock",text:"",f:{Couleur:"",Pays:"",Région:"",Appellation:"",Volume:""},sel:{},selView:false,sortCol:"Propriété",sortDir:"asc"};
+var SS={init:false,scope:"stock",text:"",f:{Couleur:[],Pays:[],Région:[],Appellation:[],Volume:[]},sel:{},selView:false,sortCol:"Propriété",sortDir:"asc"};
 SCR.recherche=function(){
   SS.init=true;
   topbar("Recherche","Explorer la cave");
@@ -595,7 +620,7 @@ SCR.recherche=function(){
   document.getElementById("screen").innerHTML=html;
   document.getElementById("q").addEventListener("input",function(e){SS.text=e.target.value;runSearch();});
   document.querySelectorAll('[data-seg="scope"]').forEach(function(b){b.addEventListener("click",function(){
-    SS.scope=b.dataset.val;SS.f={Couleur:"",Pays:"",Région:"",Appellation:"",Volume:""};SS.sel={};SS.selView=false;render();});});
+    SS.scope=b.dataset.val;SS.f={Couleur:[],Pays:[],Région:[],Appellation:[],Volume:[]};SS.sel={};SS.selView=false;render();});});
   runSearch();
 };
 function segScope(val,label){return '<button data-seg="scope" data-val="'+val+'" aria-pressed="'+(SS.scope===val?"true":"false")+'">'+esc(label)+'</button>';}
@@ -630,17 +655,19 @@ function runSearch(){
   var rows=baseRows(SS.scope);
   var q=SS.text.trim().toLowerCase();
   if(q)rows=rows.filter(function(r){return COLS.slice(0,9).map(function(c){return r[c];}).join(" ").toLowerCase().indexOf(q)!==-1;});
-  var order=["Couleur","Pays","Région","Appellation","Volume"];var fhtml="";var acc=rows;
-  order.forEach(function(col){
-    var opts={};acc.forEach(function(r){var v=(r[col]||"").trim();if(v)opts[v]=1;});
-    var list=Object.keys(opts).sort(function(a,b){return a.localeCompare(b,"fr");});
-    var cur=SS.f[col];if(cur&&list.indexOf(cur)===-1){cur="";SS.f[col]="";}
-    fhtml+='<div class="selwrap" style="margin-bottom:8px"><select data-fcol="'+col+'"><option value="">'+col+' — toutes</option>'
-      +list.map(function(v){return '<option value="'+esc(v)+'"'+(v===cur?" selected":"")+'>'+esc(v)+'</option>';}).join("")+'</select></div>';
-    if(cur)acc=acc.filter(function(r){return (r[col]||"").trim()===cur;});
-  });
+  var order=["Couleur","Pays","Région","Appellation","Volume"];
+  order.forEach(function(col){var sel=SS.f[col]||[];if(sel.length)rows=rows.filter(function(r){return sel.indexOf((r[col]||"").trim())!==-1;});});
+  var acc=rows;
+  var fhtml="";
+  order.forEach(function(col){var sel=SS.f[col]||[];var summ=sel.length?esc(sel.join(", ")):"toutes";
+    fhtml+='<button class="fltrow'+(sel.length?" on":"")+'" data-fcol-open="'+esc(col)+'"><span class="fcol">'+esc(col)+'</span> — <span class="fval">'+summ+'</span></button>';});
+  var fchips=[];order.forEach(function(col){(SS.f[col]||[]).forEach(function(v){
+    fchips.push('<span class="fchip">'+esc(v)+'<button data-fdel-col="'+esc(col)+'" data-fdel-val="'+esc(v)+'" aria-label="Retirer">×</button></span>');});});
+  if(fchips.length)fhtml+='<div class="chipbar">'+fchips.join("")+'<button class="btn sm flat flt-clear-all" style="width:auto">Tout retirer</button></div>';
   document.getElementById("filters").innerHTML=fhtml;
-  document.querySelectorAll('[data-fcol]').forEach(function(sel){sel.addEventListener("change",function(){SS.f[sel.dataset.fcol]=sel.value;runSearch();});});
+  document.querySelectorAll("[data-fcol-open]").forEach(function(b){b.addEventListener("click",function(){sheetFilter(b.dataset.fcolOpen);});});
+  document.querySelectorAll("[data-fdel-col]").forEach(function(b){b.addEventListener("click",function(){var c=b.dataset.fdelCol,v=b.dataset.fdelVal;SS.f[c]=(SS.f[c]||[]).filter(function(x){return x!==v;});runSearch();});});
+  var fclr=document.querySelector(".flt-clear-all");if(fclr)fclr.addEventListener("click",function(){SS.f={Couleur:[],Pays:[],Région:[],Appellation:[],Volume:[]};runSearch();});
   var records;
   if(SS.scope==="hist"){records=acc.map(function(r){return {key:r._id,repId:r._id,rep:r};});}
   else{records=groupWines(acc).map(function(g){return {key:g.key,repId:g.repId,rep:g.rep,qte:g.count,empl:emplOf(g),emplSort:emplSort(g)};});}
@@ -650,7 +677,7 @@ function runSearch(){
     var pa=(a.rep["Propriété"]||"").toLowerCase(),pb=(b.rep["Propriété"]||"").toLowerCase();return pa<pb?-1:pa>pb?1:0;});}
   var selCount=Object.keys(SS.sel).filter(function(k){return SS.sel[k];}).length;
   if(SS.selView)records=records.filter(function(r){return SS.sel[r.key];});
-  var hidden={};Object.keys(SS.f).forEach(function(k){if(SS.f[k])hidden[k]=1;});
+  var hidden={};Object.keys(SS.f).forEach(function(k){if(SS.f[k]&&SS.f[k].length===1)hidden[k]=1;});
   var cols=searchCols(SS.scope).filter(function(c){return !hidden[c.k];});
   var toolbar='<div class="row" style="margin:2px 2px 10px;gap:8px;flex-wrap:wrap;align-items:center">'
     +'<div class="grow small muted">'+records.length+' '+(SS.scope==="hist"?"bouteille(s)":"vin(s)")+(selCount?' · '+selCount+' sélectionné(s)':"")+'</div>'
@@ -673,6 +700,27 @@ function runSearch(){
     cb.addEventListener("click",function(ev){ev.stopPropagation();});
     cb.addEventListener("change",function(){SS.sel[cb.dataset.selk]=cb.checked;runSearch();});});
   document.querySelectorAll("#results tr[data-rowid]").forEach(function(tr){tr.addEventListener("click",function(){go("fiche",{id:tr.dataset.rowid,from:"recherche"});});});
+}
+function facetOptions(col){
+  var rows=baseRows(SS.scope);
+  var q=SS.text.trim().toLowerCase();
+  if(q)rows=rows.filter(function(r){return COLS.slice(0,9).map(function(c){return r[c];}).join(" ").toLowerCase().indexOf(q)!==-1;});
+  ["Couleur","Pays","Région","Appellation","Volume"].forEach(function(c){if(c===col)return;var sel=SS.f[c]||[];if(sel.length)rows=rows.filter(function(r){return sel.indexOf((r[c]||"").trim())!==-1;});});
+  var opts={};rows.forEach(function(r){var v=(r[col]||"").trim();if(v)opts[v]=1;});
+  return Object.keys(opts).sort(function(a,b){return a.localeCompare(b,"fr");});
+}
+function sheetFilter(col){
+  var list=facetOptions(col);
+  var html='<h2>'+esc(col)+'</h2><div class="muted small" style="margin-bottom:12px">Sélection multiple. Cochez une ou plusieurs valeurs.</div>';
+  if(!list.length)html+='<div class="card small muted">Aucune valeur disponible avec les filtres actuels.</div>';
+  else html+='<div class="stack">'+list.map(function(v){var on=(SS.f[col]||[]).indexOf(v)!==-1;
+    return '<label class="ck"><input type="checkbox" data-fck="'+esc(v)+'"'+(on?" checked":"")+'><span class="grow">'+esc(v)+'</span></label>';}).join("")+'</div>';
+  html+='<div class="btnrow" style="margin-top:16px"><button class="btn flat" id="flt-clear-col">Tout décocher</button><button class="btn" id="flt-apply">Appliquer</button></div>';
+  openSheet(html);
+  document.querySelectorAll("[data-fck]").forEach(function(cb){cb.addEventListener("change",function(){var v=cb.dataset.fck;var arr=SS.f[col]||[];
+    if(cb.checked){if(arr.indexOf(v)===-1)arr.push(v);}else{arr=arr.filter(function(x){return x!==v;});}SS.f[col]=arr;runSearch();});});
+  var cc=document.getElementById("flt-clear-col");if(cc)cc.addEventListener("click",function(){SS.f[col]=[];document.querySelectorAll("[data-fck]").forEach(function(x){x.checked=false;});runSearch();});
+  var ap=document.getElementById("flt-apply");if(ap)ap.addEventListener("click",function(){closeModal();});
 }
 
 /* ---------- Inventaire ---------- */
@@ -724,7 +772,7 @@ function invControl(){
       +'<div class="grow"><div style="font-family:var(--serif);font-size:1.05rem;line-height:1.2">'+esc(r["Propriété"]||"(sans nom)")+' <span class="muted">'+esc(r["Année"])+'</span></div>'
       +(sub?'<div class="tiny muted" style="margin-top:2px">'+esc(sub)+'</div>':"")
       +(sub2?'<div class="tiny muted">'+esc(sub2)+'</div>':"")
-      +'<div style="margin-top:5px"><span class="badge out">attendu : '+g.count+'</span>'+(ctrlN?' <span class="badge ctrl">déjà à contrôler ×'+ctrlN+'</span>':"")+'</div></div></div>'
+      +'<div class="qexp"><span class="qexp-k">Nombre de bouteilles dans le casier</span><span class="qexp-v">'+g.count+'</span>'+(ctrlN?' <span class="badge ctrl">déjà à contrôler ×'+ctrlN+'</span>':"")+'</div></div></div>'
       +'<div class="two" style="margin-top:10px"><div class="seg pa"><button data-il="present" data-k="'+esc(g.key)+'" data-v="1" aria-pressed="'+(pres?"true":"false")+'">Présent</button><button data-il="present" data-k="'+esc(g.key)+'" data-v="0" aria-pressed="'+(on==="absent"?"true":"false")+'">Absent</button></div>'
       +'<div class="step'+(pres?"":" off")+'"><button data-il="dec" data-k="'+esc(g.key)+'"'+(pres?"":" disabled")+'>−</button><span class="val">'+(pres?lp.count:(on==="absent"?0:"—"))+'</span><button data-il="inc" data-k="'+esc(g.key)+'"'+(pres?"":" disabled")+'>+</button></div></div>'
       +'<div class="two" style="margin-top:8px"><div class="seg etq'+(pres?"":" off")+'"><button data-il="etiq" data-k="'+esc(g.key)+'" data-v="Oui" aria-pressed="'+(lp.etiq==="Oui"?"true":"false")+'"'+(pres?"":" disabled")+'>Étiquette</button><button data-il="etiq" data-k="'+esc(g.key)+'" data-v="Non" aria-pressed="'+(lp.etiq==="Non"?"true":"false")+'"'+(pres?"":" disabled")+'>Absente</button></div>'
@@ -973,6 +1021,31 @@ function showExportSheet(name,csv,txt){
     +'<button class="btn flat sm" style="width:auto;margin-bottom:14px" data-a="exp-copy" data-t="txt">Copier le TXT</button>'
     +'<div class="btnrow"><button class="btn" data-a="exp-close">Fermer</button></div>');
 }
+function settingsExport(){
+  var payload={app:"cave-a-vin",kind:"reglages",v:1,ts:stamp(),settings:state.settings};
+  var json=JSON.stringify(payload,null,2);
+  var name=(state.settings.projet||"Cave")+"_reglages_"+yymmdd();
+  try{if(navigator.share&&typeof File!=="undefined"){var files=[new File([json],name+".json",{type:"application/json"})];
+    if(!navigator.canShare||navigator.canShare({files:files})){navigator.share({files:files,title:name}).then(function(){toast("Réglages exportés.");}).catch(function(){settingsExportSheet(name,json);});return;}}}catch(e){}
+  settingsExportSheet(name,json);
+}
+function settingsExportSheet(name,json){
+  openSheet('<h2>Réglages enregistrés</h2><p class="small muted" style="margin:4px 0 12px">Copiez ce texte et collez-le dans un fichier (app Fichiers) pour le conserver ou le transférer sur un autre appareil.</p>'
+    +'<div class="field"><label>'+esc(name)+'.json</label><textarea class="inp" id="set-json" style="min-height:160px" readonly>'+esc(json)+'</textarea></div>'
+    +'<button class="btn flat sm" style="width:auto;margin-bottom:14px" data-a="setexp-copy">Copier</button>'
+    +'<div class="btnrow"><button class="btn" data-a="closeModal">Fermer</button></div>');
+}
+function settingsImport(){
+  openSheet('<h2>Importer des réglages</h2><p class="small muted" style="margin:4px 0 12px">Collez le contenu d\'un fichier de réglages (.json) enregistré précédemment.</p>'
+    +'<div class="field"><textarea class="inp" id="set-json-in" style="min-height:160px" placeholder="Collez le JSON ici"></textarea></div>'
+    +'<div class="btnrow"><button class="btn flat" data-a="closeModal">Annuler</button><button class="btn" data-a="setimp-apply">Appliquer</button></div>');
+}
+function settingsImportApply(){
+  var raw=(document.getElementById("set-json-in").value||"").trim();if(!raw){toast("Rien à importer.");return;}
+  try{var obj=JSON.parse(raw);var s=obj&&obj.settings?obj.settings:obj;if(!s||typeof s!=="object")throw 0;
+    for(var k in s)state.settings[k]=s[k];ensureDesign();saveSettings();applyTheme();closeModal();toast("Réglages importés.");render();}
+  catch(e){toast("Fichier de réglages illisible.");}
+}
 
 /* ---------- Réglages ---------- */
 function sliderRow(label,id,min,max,step,val,unit){
@@ -1014,6 +1087,12 @@ SCR.reglages=function(){
   html+='<div class="section"><div class="lbl">Options</div><div class="card"><label class="ck" style="border:0;padding:0"><input type="checkbox" id="set-lastcave"'+(st.lastCave?" checked":"")+'> Mémoriser la dernière cave consultée</label>'
     +'<div class="tiny muted" style="margin-top:8px">Format de date affiché : 31.12.2026 · Températures en °C · Montants en CHF · Pas de mode sombre.</div></div></div>';
 
+  html+='<div class="section"><div class="lbl">Sauvegarde des réglages</div><div class="card stack">'
+    +'<div class="tiny muted">Les réglages (design, projet, options) sont déjà mémorisés automatiquement sur cet appareil. L\'export permet de les conserver hors de l\'app ou de les transférer sur un autre appareil.</div>'
+    +'<button class="btn ghost" data-a="save-settings">Enregistrer les réglages (fichier)</button>'
+    +'<button class="btn flat" data-a="import-settings">Importer des réglages</button>'
+    +'</div></div>';
+
   html+='<div class="section"><div class="lbl">Zone sensible</div><div class="card stack">'
     +'<button class="btn danger" data-a="reset-session">Réinitialiser la session en cours</button>'
     +'<button class="btn flat" data-a="apropos">À propos</button></div></div>';
@@ -1032,8 +1111,9 @@ SCR.reglages=function(){
 SCR.apropos=function(){
   topbar("À propos","Cave à vin");
   document.getElementById("screen").innerHTML=
-   '<div class="card stack"><h2>Cave à vin — v4</h2>'
+   '<div class="card stack"><h2>Cave à vin — v5</h2>'
    +'<p class="small">Gestion d\'une cave personnelle à partir d\'un fichier CSV de 21 colonnes. Le CSV reste le fichier maître ; chaque validation produit une nouvelle version datée, accompagnée d\'un fichier TXT d\'historique.</p>'
+   +'<p class="tiny muted">v5 — Recherche : filtres à sélection multiple (plusieurs régions, pays…) avec retrait par étiquette. Réglages : export / import des réglages. Fiche vin : présentation « fiche technique » aérée. Inventaire : « nombre de bouteilles dans le casier » en grand.</p>'
    +'<p class="tiny muted">v4 — 100% local, aucun accès externe (ni police, image, script ou CDN externe ; aucun lien sortant). Export par partage iOS (« Enregistrer dans Fichiers ») avec repli copier-coller intégré. Validation : modifications triées par emplacement.</p>'
    +'<p class="tiny muted">v3 — Dialogues internes. Liste par cave : tri + prix. Regroupement des emplacements. Fiche : statut « à contrôler ». Inventaire : sélecteur repliable, sans saut d\'écran, sauvegarde automatique.</p>'
    +'<p class="tiny muted">v2 — Inventaire : « Terminer » bloqué tant qu\'un casier commencé a un vin non pointé ; états Présent/Absent et Étiquette colorés.</p>'
@@ -1086,6 +1166,10 @@ document.addEventListener("click",function(ev){
     case "exp-copy":{var eta=document.getElementById(t.dataset.t==="csv"?"exp-csv":"exp-txt");if(eta){eta.focus();eta.select();try{eta.setSelectionRange(0,eta.value.length);}catch(e){}var ok=false;try{ok=document.execCommand("copy");}catch(e){}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(eta.value).catch(function(){});ok=true;}toast(ok?"Copié.":"Sélectionnez le texte puis copiez.");}}break;
     case "exp-close":closeModal();go("accueil");break;
     case "design-reset":state.settings.design=Object.assign({},DESIGN_DEFAULT);saveSettings();applyTheme();render();break;
+    case "save-settings":settingsExport();break;
+    case "import-settings":settingsImport();break;
+    case "setexp-copy":{var sjt=document.getElementById("set-json");if(sjt){sjt.focus();sjt.select();try{sjt.setSelectionRange(0,sjt.value.length);}catch(e){}var sok=false;try{sok=document.execCommand("copy");}catch(e){}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(sjt.value).catch(function(){});sok=true;}toast(sok?"Copié.":"Sélectionnez le texte puis copiez.");}}break;
+    case "setimp-apply":settingsImportApply();break;
     case "reset-session":uiConfirm("Effacer les modifications en attente et repartir de l'import ? Votre CSV d'origine n'est pas touché.",function(){lsDel(K.snap);state.session=[];state.dirty=false;state.loaded=false;state.data=[];state.inv={cave:null,ligne:null,casier:null,progress:{}};go("accueil");});break;
     // liste par cave — sens du tri
     case "cave-dir":state.route.p.dir=(state.route.p.dir==="desc"?"asc":"desc");SCR.cave(state.route.p);break;
