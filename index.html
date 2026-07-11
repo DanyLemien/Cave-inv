@@ -240,11 +240,16 @@ input[type=range]{accent-color:var(--accent);width:100%}
 .qexp{display:flex;align-items:center;gap:11px;margin-top:9px;flex-wrap:wrap}
 .qexp-k{font-size:.75rem;color:var(--soft);letter-spacing:.02em}
 .qexp-v{font-family:var(--serif);font-size:1.8rem;line-height:1;color:var(--ink);font-weight:600}
+/* ==== v7 ==== */
+#appver{text-align:center;font-size:.66rem;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);opacity:.75;padding:6px 10px 16px;margin-top:4px}
+#screen .coord.lg{font-size:1.02rem;padding:4px 11px;font-weight:600}
+.btn.sm.invbtn{font-size:1.05rem;padding:12px 10px}
 </style>
 </head>
 <body>
 <header id="topbar"><div class="tb-row"><div class="tb-title">Cave à vin</div></div></header>
 <main id="screen"></main>
+<div id="appver"></div>
 <nav id="tabbar"></nav>
 <div id="modal"><div class="scrim" data-a="closeModal"></div><div class="sheet" id="sheet"></div></div>
 <input type="file" id="fileInput" accept=".csv,text/csv" hidden>
@@ -262,6 +267,7 @@ input[type=range]{accent-color:var(--accent);width:100%}
 
 /* ---------- Constantes ---------- */
 var DELIM=";";
+var APP_NAME="Cave à vin";var APP_VER="v7";
 var COLS=["Propriété","Nom","Année","Couleur","Pays","Région","Appellation","Cépages","Volume",
 "Localisation","Date entrée","Prix","En cave","Date dégustation","Convives","Evénement","Mets",
 "Commentaire","Photo_etiquette_devant","Photo_etiquette_derriere","Photo_facture"];
@@ -732,22 +738,22 @@ SCR.inventaire=function(){
   var html="";
   var pend=Object.keys(iv.progress).length;
   var ready=inventoryReady();
-  if(pend)html+='<div class="banner acc"><div class="row" style="flex-wrap:wrap;gap:8px"><div class="grow small" style="min-width:150px"><b>Inventaire en cours</b><br><span class="muted">'+pend+' casier(s) commencé(s), non appliqués.</span></div><button class="btn sm" data-a="inv-finish"'+(ready?"":" disabled")+'>Terminer</button><button class="btn sm flat" data-a="inv-reset-all">Tout réinitialiser</button></div></div>';
+  if(pend)html+='<div class="banner acc"><div class="row" style="flex-wrap:wrap;gap:8px"><div class="grow small" style="min-width:150px"><b>Inventaire en cours</b><br><span class="muted">'+pend+' casier(s) commencé(s), non appliqués.</span></div><button class="btn sm" data-a="inv-finish"'+(ready?"":" disabled")+'>Terminer</button><button class="btn sm flat" data-a="inv-report">Voir / télécharger</button><button class="btn sm flat" data-a="inv-reset-all">Tout réinitialiser</button></div></div>';
   var collapsed=iv.cave&&iv.ligne&&iv.casier&&!iv.expand;
   if(collapsed){
-    html+='<div class="section"><div class="card" style="background:var(--surface2)"><div class="row"><span class="coord">'+esc(buildLoc(iv.cave,iv.ligne,iv.casier))+'</span><div class="grow small muted">emplacement en cours</div><button class="btn sm flat" data-a="inv-expand" style="width:auto">Changer</button></div></div></div>';
+    html+='<div class="section"><div class="card" style="background:var(--surface2)"><div class="row"><span class="coord lg">'+esc(buildLoc(iv.cave,iv.ligne,iv.casier))+'</span><div class="grow small muted">emplacement en cours</div><button class="btn sm flat" data-a="inv-expand" style="width:auto">Changer</button></div></div></div>';
   }else{
     html+='<div class="section"><div class="lbl">1 · Cave</div><div class="three">';
-    for(var c=1;c<=5;c++)html+='<button class="btn '+(iv.cave===c?"":"flat")+' sm" data-a="inv-cave" data-c="'+c+'" style="width:100%">Cave '+c+'</button>';
+    for(var c=1;c<=5;c++)html+='<button class="btn '+(iv.cave===c?"":"flat")+' sm invbtn" data-a="inv-cave" data-c="'+c+'" style="width:100%">Cave '+c+'</button>';
     html+='</div></div>';
     if(iv.cave){var lignes=lignesOf(iv.cave);
       html+='<div class="section"><div class="lbl">2 · Ligne</div>';
-      html+=lignes.length?'<div class="three">'+lignes.map(function(l){return '<button class="btn '+(iv.ligne===l?"":"flat")+' sm" data-a="inv-ligne" data-l="'+l+'" style="width:100%">Ligne '+l+'</button>';}).join("")+'</div>':'<div class="small muted">Aucune bouteille placée dans la cave '+iv.cave+'.</div>';
+      html+=lignes.length?'<div class="three">'+lignes.map(function(l){return '<button class="btn '+(iv.ligne===l?"":"flat")+' sm invbtn" data-a="inv-ligne" data-l="'+l+'" style="width:100%">Ligne '+l+'</button>';}).join("")+'</div>':'<div class="small muted">Aucune bouteille placée dans la cave '+iv.cave+'.</div>';
       html+='</div>';}
     if(iv.cave&&iv.ligne){var cas=casiersOf(iv.cave,iv.ligne);
       html+='<div class="section"><div class="lbl">3 · Casier</div><div class="three">'
         +cas.map(function(k){var loc=buildLoc(iv.cave,iv.ligne,k);var done=iv.progress[loc]?" ✓":"";
-          return '<button class="btn '+(iv.casier===k?"":"flat")+' sm" data-a="inv-casier" data-k="'+k+'" style="width:100%">Casier '+k+done+'</button>';}).join("")+'</div>';
+          return '<button class="btn '+(iv.casier===k?"":"flat")+' sm invbtn" data-a="inv-casier" data-k="'+k+'" style="width:100%">Casier '+k+done+'</button>';}).join("")+'</div>';
       html+='<div class="row" style="margin-top:8px"><input class="inp" id="mancas" inputmode="numeric" placeholder="Autre casier n°" style="flex:1"><button class="btn sm flat" data-a="inv-mancas">Aller</button></div>';
       html+='</div>';}
   }
@@ -759,11 +765,11 @@ function invControl(){
   var lots=lotsOfCasier(iv.cave,iv.ligne,iv.casier).slice().sort(function(a,b){return b.count-a.count||(a.rep["Propriété"]||"").localeCompare(b.rep["Propriété"]||"","fr");});
   var prog=iv.progress[loc]||{lots:{},empty:false};
   var cas=casiersOf(iv.cave,iv.ligne);var idx=cas.indexOf(iv.casier);
-  var html='<div class="section"><div class="row" style="margin-bottom:8px"><div class="lbl grow" style="margin:0">4 · Contrôle — '+esc(loc)+'</div>'+(iv.progress[loc]?'<button class="lnk-reset" data-a="inv-reset-casier">Réinitialiser ce casier</button>':"")+'</div>';
+  var html='<div class="section"><div class="row" style="margin-bottom:8px"><div class="lbl grow" style="margin:0;font-size:1.05rem;font-weight:600">4 · Contrôle — '+esc(loc)+'</div>'+(iv.progress[loc]?'<button class="lnk-reset" data-a="inv-reset-casier">Réinitialiser ce casier</button>':"")+'</div>';
   if(!lots.length){html+='<div class="card small muted">Casier vide (aucune bouteille enregistrée ici).</div>';}
   else{
     var totalBtl=0;lots.forEach(function(x){totalBtl+=x.count;});
-    html+='<div class="card" style="margin-bottom:10px;background:var(--surface2)"><div class="row"><span class="coord">'+esc(loc)+'</span><div class="grow small muted">'+lots.length+' vin'+(lots.length>1?"s":"")+'</div><span class="badge">'+totalBtl+' bouteille'+(totalBtl>1?"s":"")+'</span></div></div>';
+    html+='<div class="card" style="margin-bottom:10px;background:var(--surface2)"><div class="row"><span class="coord lg">'+esc(loc)+'</span><div class="grow small muted">'+lots.length+' vin'+(lots.length>1?"s":"")+'</div><span class="badge">'+totalBtl+' bouteille'+(totalBtl>1?"s":"")+'</span></div></div>';
     html+='<div class="stack">'+lots.map(function(g,i){
     var r=g.rep;var lp=prog.lots[g.key]||{status:null,count:0,etiq:null,note:""};
     var on=lp.status;var pres=on==="present";
@@ -783,9 +789,12 @@ function invControl(){
   var ready=inventoryReady();
   if(!ready){var inc=incompleteCasiers().map(function(l){var p=parseLoc(l);return p.cave+"·"+p.ligne+"/"+p.casier;});
     html+='<div class="banner" style="margin-top:14px;border-color:var(--warn);border-left-color:var(--warn)"><div class="small"><b>« Terminer » indisponible</b><br>Casier(s) commencé(s) avec un vin non pointé : '+inc.join(", ")+'. Marquez chaque vin Présent ou Absent.</div></div>';}
+  var lignesNav=lignesOf(iv.cave);var liNav=lignesNav.indexOf(iv.ligne);var nextLigne=(liNav>=0&&liNav<lignesNav.length-1)?lignesNav[liNav+1]:null;
+  var atEnd=idx>=cas.length-1;
+  var rightBtn=atEnd?(nextLigne!=null?'<button class="btn" data-a="inv-nextligne">Ligne '+nextLigne+' · casier '+(casiersOf(iv.cave,nextLigne)[0]||1)+' ›</button>':'<button class="btn flat" disabled>Fin de la cave</button>'):'<button class="btn flat" data-a="inv-next">Casier ›</button>';
   html+='<div class="btnrow" style="margin-top:14px">'
     +'<button class="btn flat" data-a="inv-prev" '+(idx<=0?"disabled":"")+'>‹ Casier</button>'
-    +'<button class="btn flat" data-a="inv-next" '+(idx>=cas.length-1?"disabled":"")+'>Casier ›</button></div>';
+    +rightBtn+'</div>';
   html+='<div class="section" style="margin-top:10px"><button class="btn" data-a="inv-finish"'+(ready?"":" disabled")+'>Terminer et appliquer l\'inventaire</button></div>';
   html+='</div>';
   return html;
@@ -977,6 +986,7 @@ function buildTXT(name){
     return Object.keys(m).sort(function(a,b){return m[b]-m[a];}).map(function(k){return "  "+k+" : "+m[k];}).join("\n");}
   var t=[];
   t.push("Cave à vin — Historique");
+  t.push("Application : "+APP_NAME+" "+APP_VER);
   t.push("Fichier : "+name+".csv");
   t.push("Généré le : "+stamp());
   t.push("");t.push("=== STATISTIQUES ===");
@@ -1113,8 +1123,9 @@ SCR.reglages=function(){
 SCR.apropos=function(){
   topbar("À propos","Cave à vin");
   document.getElementById("screen").innerHTML=
-   '<div class="card stack"><h2>Cave à vin — v6</h2>'
+   '<div class="card stack"><h2>Cave à vin — v7</h2>'
    +'<p class="small">Gestion d\'une cave personnelle à partir d\'un fichier CSV de 21 colonnes. Le CSV reste le fichier maître ; chaque validation produit une nouvelle version datée, accompagnée d\'un fichier TXT d\'historique.</p>'
+   +'<p class="tiny muted">v7 — Nom et version affichés en bas de l\'app et inscrits dans les fichiers générés. Inventaire : à la fin d\'une ligne, bouton « ligne suivante » (premier casier) ; pointage conservé en mémoire à chaque casier ; « Voir / télécharger » l\'inventaire en cours à tout moment. Affichage cave / ligne / casier en plus grand.</p>'
    +'<p class="tiny muted">v6 — Inventaire : une bouteille manquante corrige directement la ligne (En cave → 0) et inscrit « inventaire jj.mm.aa » (date du jour) dans Convives, au lieu du statut « à contrôler ».</p>'
    +'<p class="tiny muted">v5 — Recherche : filtres à sélection multiple (plusieurs régions, pays…) avec retrait par étiquette. Réglages : export / import des réglages. Fiche vin : présentation « fiche technique » aérée. Inventaire : « nombre de bouteilles dans le casier » en grand.</p>'
    +'<p class="tiny muted">v4 — 100% local, aucun accès externe (ni police, image, script ou CDN externe ; aucun lien sortant). Export par partage iOS (« Enregistrer dans Fichiers ») avec repli copier-coller intégré. Validation : modifications triées par emplacement.</p>'
@@ -1185,6 +1196,10 @@ document.addEventListener("click",function(ev){
     case "inv-prev":{var cas=casiersOf(state.inv.cave,state.inv.ligne);var i=cas.indexOf(state.inv.casier);if(i>0){invSaveCurrent();state.inv.casier=cas[i-1];go("inventaire");}}break;
     case "inv-next":{var cas2=casiersOf(state.inv.cave,state.inv.ligne);var j=cas2.indexOf(state.inv.casier);if(j<cas2.length-1){invSaveCurrent();state.inv.casier=cas2[j+1];go("inventaire");}}break;
     case "inv-finish":invFinish();break;
+    case "inv-report":invReportSheet();break;
+    case "invrep-copy":{var irt=document.getElementById("inv-rep");if(irt){irt.focus();irt.select();try{irt.setSelectionRange(0,irt.value.length);}catch(e){}var iok=false;try{iok=document.execCommand("copy");}catch(e){}if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(irt.value).catch(function(){});iok=true;}toast(iok?"Copié.":"Sélectionnez le texte puis copiez.");}}break;
+    case "invrep-share":{var irt2=document.getElementById("inv-rep");shareText(t.dataset.name,"txt","text/plain",irt2?irt2.value:buildInvReport(),"Inventaire prêt — « Enregistrer dans Fichiers ».");}break;
+    case "inv-nextligne":{var lgN=lignesOf(state.inv.cave);var liN=lgN.indexOf(state.inv.ligne);if(liN>=0&&liN<lgN.length-1){invSaveCurrent();state.inv.ligne=lgN[liN+1];var csN=casiersOf(state.inv.cave,state.inv.ligne);state.inv.casier=csN.length?csN[0]:null;state.inv.expand=false;go("inventaire");}}break;
     case "inv-reset-casier":{var rloc=buildLoc(state.inv.cave,state.inv.ligne,state.inv.casier);if(state.inv.progress[rloc])uiConfirm("Réinitialiser le contrôle de ce casier ?",function(){delete state.inv.progress[rloc];commit();renderInv();});}break;
     case "inv-reset-all":if(Object.keys(state.inv.progress).length)uiConfirm("Réinitialiser tout l'inventaire en cours ? Les pointages non appliqués seront perdus.",function(){state.inv.progress={};state.inv.casier=null;state.inv.expand=false;commit();renderInv();});break;
   }
@@ -1234,6 +1249,51 @@ function invFinish(){
   toast(applied?applied+" constat(s) enregistré(s). Validez pour générer le CSV.":"Aucun écart constaté.");
   go(state.dirty?"validation":"accueil");
 }
+function buildInvReport(){
+  var iv=state.inv;
+  var locs=Object.keys(iv.progress).sort(function(a,b){var pa=parseLoc(a),pb=parseLoc(b);
+    return (pa.cave||0)-(pb.cave||0)||(pa.ligne||0)-(pb.ligne||0)||(pa.casier||0)-(pb.casier||0);});
+  var t=[];
+  t.push(APP_NAME+" — Inventaire en cours");
+  t.push("Application : "+APP_NAME+" "+APP_VER);
+  t.push("Fichier de données : "+(state.fileName||"(sans nom)"));
+  t.push("Enregistré le : "+stamp());
+  t.push("Casiers pointés : "+locs.length);
+  t.push("");
+  if(!locs.length){t.push("(aucun casier pointé pour le moment)");return t.join("\r\n")+"\r\n";}
+  locs.forEach(function(loc){
+    var p=iv.progress[loc];var pl=parseLoc(loc);
+    var byKey={};lotsOfCasier(pl.cave,pl.ligne,pl.casier).forEach(function(g){byKey[g.key]=g;});
+    t.push("=== "+loc+" ===");
+    var keys=Object.keys(p.lots||{});
+    if(!keys.length){t.push("  (aucun vin pointé)");t.push("");return;}
+    keys.forEach(function(key){var lp=p.lots[key];var g=byKey[key];
+      var name=g?(g.rep["Propriété"]+" "+(g.rep["Année"]||"")):key;var expected=g?g.count:0;
+      var line="  "+name+" : ";
+      if(lp.status==="present"){line+=lp.count+"/"+expected+" présentes";
+        if(lp.count<expected)line+=" (manque "+(expected-lp.count)+")";
+        else if(lp.count>expected)line+=" (surplus "+(lp.count-expected)+")";
+        if(lp.etiq)line+=" · étiquette "+(lp.etiq==="Oui"?"présente":"absente");
+      }else if(lp.status==="absent"){line+="ABSENT (attendu "+expected+")";}
+      else{line+="non pointé (attendu "+expected+")";}
+      if(lp.note)line+=" · note : "+lp.note;
+      t.push(line);});
+    t.push("");});
+  return t.join("\r\n")+"\r\n";
+}
+function shareText(name,ext,mime,content,okMsg){
+  try{if(navigator.share&&typeof File!=="undefined"){var files=[new File([content],name+"."+ext,{type:mime})];
+    if(!navigator.canShare||navigator.canShare({files:files})){navigator.share({files:files,title:name}).then(function(){toast(okMsg||"Fichier prêt.");}).catch(function(){toast("Partage annulé — utilisez « Copier ».");});return;}}}catch(e){}
+  toast("Partage indisponible — utilisez « Copier ».");
+}
+function invReportSheet(){
+  var txt=buildInvReport();
+  var name=(state.settings.projet||"Cave")+"_inventaire_"+yymmdd();
+  openSheet('<h2>Inventaire en cours</h2><p class="small muted" style="margin:4px 0 12px">Récapitulatif de tous les casiers déjà pointés. Non appliqué au fichier ; conservé en mémoire sur cet appareil tant que l\'inventaire n\'est ni terminé ni réinitialisé.</p>'
+    +'<div class="field"><label>'+esc(name)+'.txt</label><textarea class="inp" id="inv-rep" style="min-height:220px" readonly>'+esc(txt)+'</textarea></div>'
+    +'<div class="btnrow"><button class="btn flat" data-a="invrep-copy">Copier</button><button class="btn" data-a="invrep-share" data-name="'+esc(name)+'">Télécharger</button></div>'
+    +'<div class="section" style="margin-top:12px"><button class="btn flat" data-a="closeModal">Fermer</button></div>');
+}
 
 /* ---------- Import fichier ---------- */
 document.getElementById("fileInput").addEventListener("change",function(e){
@@ -1258,6 +1318,7 @@ document.getElementById("fileInput").addEventListener("change",function(e){
  * ============================================================= */
 (function init(){
   loadSettings();loadLists();applyTheme();
+  var _av=document.getElementById("appver");if(_av)_av.textContent=APP_NAME+" — "+APP_VER;
   var snap=readSnapshot();
   if(snap&&snap.data&&snap.data.length){
     applySnapshot(snap);
@@ -1274,3 +1335,4 @@ document.addEventListener("click",function(ev){var t=ev.target.closest("[data-a]
 </script>
 </body>
 </html>
+
