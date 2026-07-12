@@ -29,6 +29,7 @@ body{
   padding-bottom:calc(64px + env(safe-area-inset-bottom));
   padding-top:env(safe-area-inset-top);
 }
+body.modal-open{overflow:hidden;}
 h1,h2,h3{font-family:var(--serif);font-weight:600;margin:0}
 .mono{font-family:var(--mono)}
 button{font-family:inherit;font-size:1rem;color:inherit}
@@ -267,7 +268,7 @@ input[type=range]{accent-color:var(--accent);width:100%}
 
 /* ---------- Constantes ---------- */
 var DELIM=";";
-var APP_NAME="Cave à vin";var APP_VER="v7-3";
+var APP_NAME="Cave à vin";var APP_VER="v7-4";
 var COLS=["Propriété","Nom","Année","Couleur","Pays","Région","Appellation","Cépages","Volume",
 "Localisation","Date entrée","Prix","En cave","Date dégustation","Convives","Evénement","Mets",
 "Commentaire","Photo_etiquette_devant","Photo_etiquette_derriere","Photo_facture"];
@@ -617,7 +618,7 @@ SCR.fiche=function(p){
   var busComplete=bus.filter(function(r){return (r["Localisation"]||"").trim();});
   if(busComplete.length){
     html+='<div class="section"><div class="lbl">Historique de dégustation</div><div class="stack">';
-    busComplete.slice().sort(function(a,b){return (b["Date dégustation"]||"").localeCompare(a["Date dégustation"]||"");}).forEach(function(r){
+    busComplete.slice().sort(function(a,b){return dateSort(b["Date dégustation"]||"")-dateSort(a["Date dégustation"]||"");}).forEach(function(r){
       html+='<div class="card"><div class="row"><span class="coord">'+esc(toDots(r["Date dégustation"])||"date ?")+'</span><div class="grow small">'
         +esc([r["Evénement"],r["Convives"]].filter(Boolean).join(" · "))+'</div></div>'
         +((r["Mets"]||r["Commentaire"])?'<div class="small muted" style="margin-top:6px">'+esc([r["Mets"],r["Commentaire"]].filter(Boolean).join(" — "))+'</div>':"")+'</div>';
@@ -758,7 +759,7 @@ function sheetFilter(col){
   var list=facetOptions(col);
   var html='<h2>'+esc(col)+'</h2>';
   if(col==="Couleur"){
-    html+='<div class="muted small" style="margin-bottom:12px">Sélection directe.</div>';
+    html+='<div class="muted small" style="margin-bottom:12px">Sélection unique (radio).</div>';
     var pills=[["Vin blanc","1"],["Vin rouge","2"],["Vin rosé","3"],["Autres","4"]];
     var curr=SS.f[col]||[];
     html+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">';
@@ -767,7 +768,7 @@ function sheetFilter(col){
       var on=val==="Autres"?(curr.indexOf("Fermenté")!==-1||curr.indexOf("Spiritueux")!==-1):(curr.indexOf(val)!==-1);
       html+='<button class="pill-btn" data-pill="'+esc(val)+'" style="flex:0;padding:10px 16px;border:2px solid;border-radius:8px;background:'+(on?"var(--accent)":"var(--surface)")+';color:'+(on?"white":"var(--ink)")+';border-color:'+(on?"var(--accent)":"var(--line)")+';cursor:pointer;font-weight:'+(on?"600":"500")+';font-size:1rem;">'+esc(label)+' '+esc(val)+'</button>';
     });
-    html+='</div><div class="btnrow"><button class="btn flat" id="flt-clear-col">Réinitialiser</button><button class="btn" id="flt-apply">Appliquer</button></div>';
+    html+='</div>';
   }else{
     html+='<div class="muted small" style="margin-bottom:12px">Sélection multiple. Cochez une ou plusieurs valeurs.</div>';
     if(!list.length)html+='<div class="card small muted">Aucune valeur disponible avec les filtres actuels.</div>';
@@ -779,23 +780,18 @@ function sheetFilter(col){
   if(col==="Couleur"){
     document.querySelectorAll("[data-pill]").forEach(function(btn){
       btn.addEventListener("click",function(){
-        var v=btn.dataset.pill;var arr=SS.f[col]||[];
-        if(v==="Autres"){
-          var autres=["Fermenté","Spiritueux"];
-          var hasAutres=autres.some(function(x){return arr.indexOf(x)!==-1;});
-          if(hasAutres){arr=arr.filter(function(x){return autres.indexOf(x)===-1;});}else{arr=arr.concat(autres);}
-        }else{
-          if(arr.indexOf(v)!==-1){arr=arr.filter(function(x){return x!==v;});}else{arr.push(v);}
-        }
-        SS.f[col]=arr;runSearch();
+        var v=btn.dataset.pill;
+        var arr=[];
+        if(v==="Autres"){arr=["Fermenté","Spiritueux"];}else{arr=[v];}
+        SS.f[col]=arr;runSearch();closeModal();
       });
     });
   }else{
     document.querySelectorAll("[data-fck]").forEach(function(cb){cb.addEventListener("change",function(){var v=cb.dataset.fck;var arr=SS.f[col]||[];
       if(cb.checked){if(arr.indexOf(v)===-1)arr.push(v);}else{arr=arr.filter(function(x){return x!==v;});}SS.f[col]=arr;runSearch();});});
+    var cc=document.getElementById("flt-clear-col");if(cc)cc.addEventListener("click",function(){SS.f[col]=[];document.querySelectorAll("[data-fck]").forEach(function(x){x.checked=false;});runSearch();});
+    var ap=document.getElementById("flt-apply");if(ap)ap.addEventListener("click",function(){closeModal();});
   }
-  var cc=document.getElementById("flt-clear-col");if(cc)cc.addEventListener("click",function(){SS.f[col]=[];if(col==="Couleur"){document.querySelectorAll("[data-pill]").forEach(function(b){b.style.background="var(--surface)";b.style.color="var(--ink)";b.style.borderColor="var(--line)";b.style.fontWeight="500";});}else{document.querySelectorAll("[data-fck]").forEach(function(x){x.checked=false;});}runSearch();});
-  var ap=document.getElementById("flt-apply");if(ap)ap.addEventListener("click",function(){closeModal();});
 }
 
 /* ---------- Inventaire ---------- */
@@ -887,8 +883,8 @@ function incompleteCasiers(){return Object.keys(state.inv.progress).filter(funct
 function inventoryReady(){return incompleteCasiers().length===0;}
 
 /* ---------- Formulaires (feuilles modales) ---------- */
-function openSheet(html){document.getElementById("sheet").innerHTML=html;document.getElementById("modal").classList.add("on");}
-function closeModal(){document.getElementById("modal").classList.remove("on");}
+function openSheet(html){document.getElementById("sheet").innerHTML=html;document.getElementById("modal").classList.add("on");document.body.classList.add("modal-open");window.scrollTo(0,0);}
+function closeModal(){document.getElementById("modal").classList.remove("on");document.body.classList.remove("modal-open");}
 /* Dialogues internes : les dialogues natifs (confirm/alert) sont bloqués dans certaines webviews. */
 var UIC={cb:null};
 function uiConfirm(msg,onYes){
@@ -955,7 +951,7 @@ function doDeplacer(key){var from=document.getElementById("m-from").value;var nb
 }
 
 function sheetModifierBouteille(id){var rep=byId(id);if(!rep)return;
-  var ecav=(rep["En cave"]||"").trim();var isActive=ecav==="1";var isDegusted=ecav==="0";
+  var ecav=(rep["En cave"]||"").trim();var isDegusted=ecav==="0";
   var commonKey=wineKey(rep);
   var allOfType=state.data.filter(function(r){return wineKey(r)===commonKey;});
   var activeStocks=allOfType.filter(function(r){return (r["En cave"]||"").trim()==="1";});
@@ -963,9 +959,31 @@ function sheetModifierBouteille(id){var rep=byId(id);if(!rep)return;
   var activeLoc=(activeStocks.length&&activeLoc.placed)?(activeStocks[0]["Cave"]?activeStocks[0]["Cave"]+" Cave, ":"")+(activeLoc.ligne||"")+"/"+activeLoc.casier:"";
   
   var html='<h2>Modifier cette bouteille</h2><div class="muted small" style="margin-bottom:12px">Modification UNIQUE de cette bouteille seulement.</div>';
-  var fields=[["Date dégustation","Date dégustation"],["Convives","Convives"],["Evénement","Evénement"],["Mets","Mets"],["Commentaire","Commentaire"]];
+  
+  /* Conversion date CSV vers format HTML */
+  function csvToHtmlDate(csvDate){var m=String(csvDate||"").match(/(\d{2})\/(\d{2})\/(\d{4})/);return m?""+m[3]+"-"+m[2]+"-"+m[1]:"";}
+  function htmlToCsvDate(htmlDate){var m=String(htmlDate||"").match(/(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+"/"+m[2]+"/"+m[1]:"";}
+  
+  var fields=[
+    ["Date dégustation","Date dégustation","date"],
+    ["Convives","Convives","text"],
+    ["Evénement","Evénement","text"],
+    ["Mets","Mets","text"],
+    ["Commentaire","Commentaire","textarea"]
+  ];
+  
   fields.forEach(function(x){
-    html+='<div class="field"><label>'+esc(x[1])+'</label><input class="inp" data-mod-bottle="'+esc(x[0])+'" value="'+esc(rep[x[0]]||"")+'" '+(x[0]==="Commentaire"?'style="height:70px;resize:vertical;"':"")+'></div>';
+    var colName=x[0];var label=x[1];var type=x[2];var val=rep[colName]||"";
+    var inputType=type==="date"?csvToHtmlDate(val):val;
+    var inputHtml='';
+    if(type==="date"){
+      inputHtml='<input type="date" class="inp" data-mod-bottle="'+esc(colName)+'" value="'+esc(inputType)+'">';
+    }else if(type==="textarea"){
+      inputHtml='<textarea class="inp" data-mod-bottle="'+esc(colName)+'" style="min-height:70px;resize:vertical;">'+esc(val)+'</textarea>';
+    }else{
+      inputHtml='<input class="inp" data-mod-bottle="'+esc(colName)+'" value="'+esc(val)+'">';
+    }
+    html+='<div class="field"><div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><label style="flex:1;margin:0">'+esc(label)+'</label><button type="button" class="btn-clear" data-clear="'+esc(colName)+'" style="background:none;border:0;color:var(--soft);cursor:pointer;font-size:1.2rem;padding:0 4px;" title="Effacer">✕</button></div>'+inputHtml+'</div>';
   });
   
   if(isDegusted){
@@ -980,6 +998,15 @@ function sheetModifierBouteille(id){var rep=byId(id);if(!rep)return;
   html+='<div class="btnrow" style="margin-top:16px"><button class="btn flat" data-a="closeModal">Annuler</button><button class="btn" data-a="do-modifier-bottle" data-id="'+esc(id)+'">Enregistrer</button></div>';
   openSheet(html);
   
+  /* Croix d'effacement (A1) */
+  document.querySelectorAll("[data-clear]").forEach(function(btn){
+    btn.addEventListener("click",function(){
+      var colName=btn.dataset.clear;
+      var inp=document.querySelector("[data-mod-bottle='"+colName+"']");
+      if(inp){inp.value="";inp.focus();}
+    });
+  });
+  
   if(isDegusted&&activeLoc){
     document.getElementById("btn-reprise-loc").addEventListener("click",function(){
       document.getElementById("loc-manuel").value=activeLoc;
@@ -987,8 +1014,14 @@ function sheetModifierBouteille(id){var rep=byId(id);if(!rep)return;
   }
 }
 function doModifierBouteille(id){var rep=byId(id);if(!rep)return;
+  function htmlToCsvDate(htmlDate){var m=String(htmlDate||"").match(/(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+"/"+m[2]+"/"+m[1]:"";}
   var inputs=document.querySelectorAll("[data-mod-bottle]");
-  inputs.forEach(function(i){rep[i.dataset.modBottle]=i.value;});
+  inputs.forEach(function(i){
+    var col=i.dataset.modBottle;
+    var val=i.value;
+    if(i.type==="date"){val=htmlToCsvDate(val);}
+    rep[col]=val;
+  });
   if(document.getElementById("loc-manuel")){rep["Localisation"]=(document.getElementById("loc-manuel").value||"").trim();}
   logChange("Modification","Bouteille unique "+rep["Propriété"]+" "+rep["Année"]+" modifiée");
   commit();closeModal();render();
@@ -996,15 +1029,35 @@ function doModifierBouteille(id){var rep=byId(id);if(!rep)return;
 
 function sheetModifier(id){var rep=byId(id);if(!rep)return;var key=wineKey(rep);
   var count=state.data.filter(function(r){return wineKey(r)===key;}).length;
-  var f=[["Propriété","Propriété"],["Nom","Nom"],["Année","Année"],["Couleur","Couleur"],["Pays","Pays"],["Région","Région"],["Appellation","Appellation"],["Cépages","Cépages"],["Volume","Volume"],["Prix","Prix"],["Localisation","Localisation"],["Date entrée","Date entrée"],["En cave","En cave"],["Date dégustation","Date dégustation"],["Convives","Convives"],["Evénement","Evénement"],["Mets","Mets"],["Commentaire","Commentaire"]];
+  function csvToHtmlDate(csvDate){var m=String(csvDate||"").match(/(\d{2})\/(\d{2})\/(\d{4})/);return m?""+m[3]+"-"+m[2]+"-"+m[1]:"";}
+  var f=[["Propriété","Propriété","text"],["Nom","Nom","text"],["Année","Année","text"],["Couleur","Couleur","text"],["Pays","Pays","text"],["Région","Région","text"],["Appellation","Appellation","text"],["Cépages","Cépages","text"],["Volume","Volume","text"],["Prix","Prix","text"],["Localisation","Localisation","text"],["Date entrée","Date entrée","date"],["En cave","En cave","text"],["Date dégustation","Date dégustation","date"],["Convives","Convives","text"],["Evénement","Evénement","text"],["Mets","Mets","text"],["Commentaire","Commentaire","textarea"]];
   var html='<h2>Modifier le vin</h2><div class="muted small" style="margin-bottom:12px">S\'applique aux '+count+' bouteille(s) de ce vin.</div>';
-  f.forEach(function(x){var listId=(state.lists[x[0]]?"dl-mod-"+x[0]:"");
-    html+='<div class="field"><label>'+esc(x[1])+'</label><input class="inp" data-mod="'+esc(x[0])+'" value="'+esc(rep[x[0]]||"")+'"'+(listId?' list="'+listId+'"':"")+'>'+(listId?dl(x[0],listId):"")+'</div>';});
+  f.forEach(function(x){
+    var col=x[0];var label=x[1];var type=x[2];var listId=(state.lists[col]?"dl-mod-"+col:"");
+    var val=rep[col]||"";
+    var inputHtml='';
+    if(type==="date"){
+      var htmlDate=csvToHtmlDate(val);
+      inputHtml='<input type="date" class="inp" data-mod="'+esc(col)+'" value="'+esc(htmlDate)+'">';
+    }else if(type==="textarea"){
+      inputHtml='<textarea class="inp" data-mod="'+esc(col)+'" style="min-height:70px;resize:vertical;">'+esc(val)+'</textarea>';
+    }else{
+      inputHtml='<input class="inp" data-mod="'+esc(col)+'" value="'+esc(val)+'"'+(listId?' list="'+listId+'"':"")+'>'+(listId?dl(col,listId):"");
+    }
+    html+='<div class="field"><label>'+esc(label)+'</label>'+inputHtml+'</div>';
+  });
   html+='<div class="btnrow"><button class="btn flat" data-a="closeModal">Annuler</button><button class="btn" data-a="do-modifier" data-key="'+esc(key)+'">Enregistrer</button></div>';
   openSheet(html);
 }
-function doModifier(key){var inputs=document.querySelectorAll("[data-mod]");var changes={};
-  inputs.forEach(function(i){changes[i.dataset.mod]=i.value;});
+function doModifier(key){
+  function htmlToCsvDate(htmlDate){var m=String(htmlDate||"").match(/(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+"/"+m[2]+"/"+m[1]:"";}
+  var inputs=document.querySelectorAll("[data-mod]");var changes={};
+  inputs.forEach(function(i){
+    var col=i.dataset.mod;
+    var val=i.value;
+    if(i.type==="date"){val=htmlToCsvDate(val);}
+    changes[col]=val;
+  });
   var rows=state.data.filter(function(r){return wineKey(r)===key;});
   var name=changes["Propriété"]||(rows[0]&&rows[0]["Propriété"]);
   rows.forEach(function(r){for(var c in changes)r[c]=changes[c];});
@@ -1022,7 +1075,7 @@ function sheetAjout(id){var base=id?byId(id):null;
     +'<label class="ck" style="margin-top:8px"><input type="checkbox" id="a-np"> Non placé</label></div>'
     +'<div class="two"><div class="field"><label>Nombre</label><div class="step"><button data-mstep="a-n" data-d="-1">−</button><span class="val" id="a-n" data-v="1">1</span><button data-mstep="a-n" data-d="1">+</button></div></div>'
     +'<div class="field"><label>Prix unitaire (CHF)</label><input class="inp" id="a-prix" inputmode="decimal" value="'+esc(base?base["Prix"]:"")+'"></div></div>'
-    +'<div class="field"><label>Date d\'entrée</label><input class="inp" id="a-date" value="'+esc(toDots(todayCSV()))+'"></div>'
+    +'<div class="field"><label>Date d\'entrée</label><input type="date" class="inp" id="a-date" value="'+(function(){var d=new Date();return d.getFullYear()+"-"+(d.getMonth()+1<10?"0":"")+(d.getMonth()+1)+"-"+(d.getDate()<10?"0":"")+d.getDate();})()+'"></div>'
     +'<div class="btnrow"><button class="btn flat" data-a="closeModal">Annuler</button><button class="btn" data-a="do-ajout">Ajouter</button></div>';
   openSheet(html);
 }
@@ -1032,7 +1085,8 @@ function doAjout(){var vals={};document.querySelectorAll("[data-add]").forEach(f
   if(np)loc="Non placé";else{var c=+document.getElementById("a-cave").value,l=+document.getElementById("a-ligne").value,k=+document.getElementById("a-casier").value;
     if(!c||!l||!k){toast("Indiquez cave, ligne et casier, ou cochez Non placé.");return;}loc=buildLoc(c,l,k);}
   var nb=+document.getElementById("a-n").dataset.v;var prix=document.getElementById("a-prix").value.replace(",",".");
-  var date=(document.getElementById("a-date").value||"").replace(/\./g,"/");
+  var htmlDate=document.getElementById("a-date").value;
+  var date=(function(){var m=String(htmlDate||"").match(/(\d{4})-(\d{2})-(\d{2})/);return m?m[3]+"/"+m[2]+"/"+m[1]:"";})();
   for(var i=0;i<nb;i++){var o={};COLS.forEach(function(col){o[col]="";});
     for(var kk in vals)o[kk]=vals[kk];o["Localisation"]=loc;o["Prix"]=prix;o["Date entrée"]=date;o["En cave"]="1";
     o._id=String(state.nextId++);state.data.push(o);}
@@ -1444,3 +1498,4 @@ document.addEventListener("click",function(ev){var t=ev.target.closest("[data-a]
 </script>
 </body>
 </html>
+
